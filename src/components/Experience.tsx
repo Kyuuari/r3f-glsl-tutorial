@@ -1,10 +1,13 @@
 import { Grid, OrbitControls } from "@react-three/drei";
 import { useControls } from "leva";
-import React, { useMemo, useRef } from "react";
-import vertexShader from "./shaders/iso_vertexShaders";
-import { Color, MathUtils, Mesh } from "three";
-import fragmentShader from "./shaders/iso_fragmentShaders";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
+// import vertexShader from "./shaders/iso_vertexShaders";
+import { Color, MathUtils, Mesh, Vector2 } from "three";
+// import fragmentShader from "./shaders/iso_fragmentShaders";
 import { useFrame } from "@react-three/fiber";
+
+import vertexShader from "./shaders/grad_vertexShaders";
+import fragmentShader from "./shaders/grad_fragmentShaders";
 
 type Props = {};
 
@@ -12,13 +15,69 @@ const Experience = (props: Props) => {
   return (
     <>
       <Grid cellColor="white" args={[10, 10]} />
-      <Blob />
+      <Gradient />
+      {/* <Blob /> */}
       {/* <Flag /> */}
     </>
   );
 };
 
 export default Experience;
+
+const Gradient = () => {
+  // This reference will give us direct access to the mesh
+  const mesh = useRef<any>();
+  const mousePosition = useRef({ x: 0, y: 0 });
+
+  const updateMousePosition = useCallback((e: any) => {
+    mousePosition.current = { x: e.pageX, y: e.pageY };
+  }, []);
+
+  const uniforms = useMemo(
+    () => ({
+      u_time: {
+        value: 0.0,
+      },
+      u_mouse: { value: new Vector2(0, 0) },
+      u_bg: {
+        value: new Color("#A1A3F7"),
+      },
+      u_colorA: { value: new Color("#9FBAF9") },
+      u_colorB: { value: new Color("#FEB3D9") },
+    }),
+    []
+  );
+
+  useEffect(() => {
+    window.addEventListener("mousemove", updateMousePosition, false);
+
+    return () => {
+      window.removeEventListener("mousemove", updateMousePosition, false);
+    };
+  }, [updateMousePosition]);
+
+  useFrame((state) => {
+    const { clock } = state;
+
+    mesh.current.material.uniforms.u_time.value = clock.getElapsedTime();
+    mesh.current.material.uniforms.u_mouse.value = new Vector2(
+      mousePosition.current.x,
+      mousePosition.current.y
+    );
+  });
+
+  return (
+    <mesh ref={mesh} position={[0, 0, 0]} scale={1.5}>
+      <planeGeometry args={[1, 1, 32, 32]} />
+      <shaderMaterial
+        fragmentShader={fragmentShader}
+        vertexShader={vertexShader}
+        uniforms={uniforms}
+        wireframe={false}
+      />
+    </mesh>
+  );
+};
 
 const Blob = () => {
   // This reference will give us direct access to the mesh
